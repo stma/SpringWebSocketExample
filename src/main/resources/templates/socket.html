@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Message changer</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+    <h1>Socket Demo</h1>
+
+    <input id="idimp" name="id" type="text" />
+    <button onclick="resetToRoom()">Reset</button>
+
+    <input id="new_message" name="message" type="text" />
+    <button onclick="sendMessage()">Send</button>
+
+    <ul id="messages">
+
+    </ul>
+
+    <script>
+        let socket;
+        let stompClient;
+        let subs;
+        let roomId;
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            function() {
+                socket = new SockJS('/websocket');
+                stompClient = Stomp.over(socket);
+
+                stompClient.connect();
+            }
+        );
+
+        window.onbeforeunload = function(){
+            stompClient && stompClient.disconnect();
+            subs && subs.unsubscribe();
+        };
+
+        function sendMessage(e) {
+            e && e.stopPropagation();
+            e && e.preventDefault();
+
+            const m = document.getElementById('new_message').value;
+            stompClient.send(`/topic/${roomId}`, {}, m);
+            document.getElementById('new_message').value = "";
+        }
+
+        function appendMessage(m) {
+            const li = document.createElement('li')
+            li.textContent = m;
+            document.getElementById('messages')
+                .appendChild(li);
+        }
+
+        function resetToRoom(e) {
+            e && e.stopPropagation();
+            e && e.preventDefault();
+
+            const myNode = document.getElementById('messages')
+            while (myNode.firstChild) {
+                myNode.removeChild(myNode.lastChild);
+            }
+
+            roomId = document.getElementById('idimp').value;
+
+            subs && subs.unsubscribe();
+            subs = stompClient.subscribe(
+                `/topic/${roomId}`,
+                function(message) {
+                    console.log('Received message: ' + message.body);
+                    appendMessage(message.body);
+                }
+            );
+        }
+
+    </script>
+</body>
+</html>
